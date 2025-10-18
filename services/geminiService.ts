@@ -11,7 +11,7 @@ const getGoogleApiKey = (keys?: ApiKeys) => {
 const getElevenLabsApiKey = (keys?: ApiKeys) => {
     if (keys?.elevenlabs) return keys.elevenlabs;
     // Fallback to a default key if not provided by user or environment
-    return process.env.ELEVENLABS_API_KEY || 'sk_0cf4ceee1a83aa0db1873c09ce3527bae1ffff7b414a6095'; 
+    return process.env.ELEVENLABS_API_KEY || ''; 
 }
 
 export const ALL_PLATFORMS: Platform[] = Object.values(PlatformEnum);
