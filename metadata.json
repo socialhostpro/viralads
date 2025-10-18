@@ -1,0 +1,5 @@
+{
+  "name": "Viral Content AI Studio",
+  "description": "An AI-powered content generator for various social media platforms. It leverages prompt research, trending topics, and AI image/video generation to create viral posts for individuals, topics, businesses, or products. Includes a content library and n8n integration.",
+  "requestFramePermissions": []
+}
