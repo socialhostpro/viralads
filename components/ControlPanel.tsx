@@ -121,6 +121,7 @@ export const ControlPanel: React.FC<ControlPanelProps> = ({ posts, onGenerate, g
     if (!projectId) {
       setTopic(''); setSourceUrl(''); setTargetAudience(''); setTone('Viral & Engaging');
       setCategory(''); setKeywordsToInclude(''); setKeywordsToExclude(''); setNegativePrompt('');
+      setSfxPrompt('');
       return;
     }
     const project = projects.find(p => p.id === projectId);
@@ -133,6 +134,7 @@ export const ControlPanel: React.FC<ControlPanelProps> = ({ posts, onGenerate, g
       setKeywordsToInclude(project.keywordsToInclude);
       setKeywordsToExclude(project.keywordsToExclude);
       setNegativePrompt(project.negativePrompt);
+      setSfxPrompt(project.sfxPrompt || '');
     }
   };
 
@@ -147,7 +149,7 @@ export const ControlPanel: React.FC<ControlPanelProps> = ({ posts, onGenerate, g
         name,
         clientId: selectedClientId,
         topic, sourceUrl, targetAudience, tone, category,
-        keywordsToInclude, keywordsToExclude, negativePrompt,
+        keywordsToInclude, keywordsToExclude, negativePrompt, sfxPrompt,
       });
       alert(`Project "${name}" saved!`);
     }

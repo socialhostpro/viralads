@@ -10,7 +10,7 @@ const getGoogleApiKey = (keys?: ApiKeys) => {
 
 const getElevenLabsApiKey = (keys?: ApiKeys) => {
     if (keys?.elevenlabs) return keys.elevenlabs;
-    // Fallback to a default key if not provided by user or environment
+    // Return platform key or empty string if neither custom nor platform key is available.
     return process.env.ELEVENLABS_API_KEY || ''; 
 }
 
@@ -67,6 +67,7 @@ export const performResearch = async (topic: string, sourceUrl?: string): Promis
   - keywordsToInclude: An array of 5-10 specific, high-impact keywords or phrases that are essential for discoverability and engagement.
   - keywordsToExclude: An array of 3-5 specific keywords or phrases to avoid. These could be related to competitors, negative sentiment, or off-brand concepts.
   - negativePrompt: A string containing a suggested "negative prompt" for content generation, outlining what the AI should avoid doing or saying (e.g., "Avoid cliches like 'game-changer'. Do not mention the product's price.").
+  - sfxPrompt: A string containing a comma-separated list of 3-5 suggested sound effects that would enhance video content for this topic (e.g., "gentle whoosh, keyboard typing, coffee shop ambiance").
   
   Provide ONLY the raw JSON object in your response. Do not wrap it in markdown formatting or add any explanatory text.`;
 

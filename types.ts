@@ -51,6 +51,7 @@ export interface ResearchReport {
     keywordsToInclude: string[];
     keywordsToExclude: string[];
     negativePrompt: string;
+    sfxPrompt?: string;
 }
 
 export interface GenerationOptions {
@@ -87,6 +88,7 @@ export interface Project {
     keywordsToExclude: string;
     negativePrompt: string;
     research?: ResearchReport;
+    sfxPrompt?: string;
 }
 
 

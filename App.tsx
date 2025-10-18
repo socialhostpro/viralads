@@ -88,6 +88,7 @@ const ProjectFormModal: React.FC<ProjectFormModalProps> = ({ project, onClose, o
     const [keywordsToInclude, setKeywordsToInclude] = useState('');
     const [keywordsToExclude, setKeywordsToExclude] = useState('');
     const [negativePrompt, setNegativePrompt] = useState('');
+    const [sfxPrompt, setSfxPrompt] = useState('');
     const [research, setResearch] = useState<ResearchReport | null>(null);
     const [isResearching, setIsResearching] = useState(false);
 
@@ -103,6 +104,7 @@ const ProjectFormModal: React.FC<ProjectFormModalProps> = ({ project, onClose, o
             setKeywordsToInclude(project.keywordsToInclude);
             setKeywordsToExclude(project.keywordsToExclude);
             setNegativePrompt(project.negativePrompt);
+            setSfxPrompt(project.sfxPrompt || '');
             setResearch(project.research || null);
         } else {
             setClientId(selectedClientId || '');
@@ -115,7 +117,7 @@ const ProjectFormModal: React.FC<ProjectFormModalProps> = ({ project, onClose, o
             alert('Please select a client for this project.');
             return;
         }
-        onSubmit({ name, clientId, topic, sourceUrl, targetAudience, tone, category, keywordsToInclude, keywordsToExclude, negativePrompt, research: research || undefined });
+        onSubmit({ name, clientId, topic, sourceUrl, targetAudience, tone, category, keywordsToInclude, keywordsToExclude, negativePrompt, sfxPrompt, research: research || undefined });
     };
     
     const handleResearch = async () => {
@@ -131,6 +133,7 @@ const ProjectFormModal: React.FC<ProjectFormModalProps> = ({ project, onClose, o
             setKeywordsToInclude(report.keywordsToInclude.join(', '));
             setKeywordsToExclude(report.keywordsToExclude.join(', '));
             setNegativePrompt(report.negativePrompt);
+            setSfxPrompt(report.sfxPrompt || '');
         } catch(error) {
             alert(error instanceof Error ? error.message : "An unknown error occurred during research.");
             console.error(error);
@@ -648,7 +651,6 @@ const App: React.FC = () => {
               posts={posts}
               clients={clients} 
               onDelete={handleDelete} 
-              // FIX: Corrected typo from `onDownload` to `handleDownload` to pass the correct handler function.
               onDownload={handleDownload}
               onSendToN8n={handleSendToN8n}
               onUpdatePost={handlePostUpdate}
