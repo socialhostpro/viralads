@@ -1,3 +1,5 @@
+
+
 import React, { useState, useEffect } from 'react';
 import type { Client } from '../types';
 import { CloseIcon, EditIcon, TrashIcon, BriefcaseIcon } from './Icons';
@@ -37,10 +39,14 @@ const ClientFormModal: React.FC<ClientFormModalProps> = ({ client, onClose, onSu
                         <button type="button" onClick={onClose} className="p-1 rounded-full hover:bg-gray-700"><CloseIcon className="h-6 w-6 text-gray-400"/></button>
                     </header>
                     <main className="p-6 space-y-4 max-h-[70vh] overflow-y-auto">
-                        <div><label className="block text-sm font-medium text-gray-300 mb-1">Client Name</label><input value={name} onChange={e => setName(e.target.value)} required className="w-full bg-gray-700 border border-gray-600 rounded-md py-2 px-3 text-white focus:outline-none focus:ring-teal-500 focus:border-teal-500"/></div>
-                        <div><label className="block text-sm font-medium text-gray-300 mb-1">Contact Name (Optional)</label><input value={contactName} onChange={e => setContactName(e.target.value)} className="w-full bg-gray-700 border border-gray-600 rounded-md py-2 px-3 text-white focus:outline-none focus:ring-teal-500 focus:border-teal-500"/></div>
-                        <div><label className="block text-sm font-medium text-gray-300 mb-1">Contact Email (Optional)</label><input type="email" value={contactEmail} onChange={e => setContactEmail(e.target.value)} className="w-full bg-gray-700 border border-gray-600 rounded-md py-2 px-3 text-white focus:outline-none focus:ring-teal-500 focus:border-teal-500"/></div>
-                        <div><label className="block text-sm font-medium text-gray-300 mb-1">Notes (Optional)</label><textarea rows={3} value={notes} onChange={e => setNotes(e.target.value)} className="w-full bg-gray-700 border border-gray-600 rounded-md py-2 px-3 text-white focus:outline-none focus:ring-teal-500 focus:border-teal-500"/></div>
+                        {/* FIX: Use e.currentTarget instead of e.target to ensure correct type inference. */}
+                        <div><label className="block text-sm font-medium text-gray-300 mb-1">Client Name</label><input value={name} onChange={(e: React.ChangeEvent<HTMLInputElement>) => setName(e.currentTarget.value)} required className="w-full bg-gray-700 border border-gray-600 rounded-md py-2 px-3 text-white focus:outline-none focus:ring-teal-500 focus:border-teal-500"/></div>
+                        {/* FIX: Use e.currentTarget instead of e.target to ensure correct type inference. */}
+                        <div><label className="block text-sm font-medium text-gray-300 mb-1">Contact Name (Optional)</label><input value={contactName} onChange={(e: React.ChangeEvent<HTMLInputElement>) => setContactName(e.currentTarget.value)} className="w-full bg-gray-700 border border-gray-600 rounded-md py-2 px-3 text-white focus:outline-none focus:ring-teal-500 focus:border-teal-500"/></div>
+                        {/* FIX: Use e.currentTarget instead of e.target to ensure correct type inference. */}
+                        <div><label className="block text-sm font-medium text-gray-300 mb-1">Contact Email (Optional)</label><input type="email" value={contactEmail} onChange={(e: React.ChangeEvent<HTMLInputElement>) => setContactEmail(e.currentTarget.value)} className="w-full bg-gray-700 border border-gray-600 rounded-md py-2 px-3 text-white focus:outline-none focus:ring-teal-500 focus:border-teal-500"/></div>
+                        {/* FIX: Use e.currentTarget instead of e.target to ensure correct type inference. */}
+                        <div><label className="block text-sm font-medium text-gray-300 mb-1">Notes (Optional)</label><textarea rows={3} value={notes} onChange={(e: React.ChangeEvent<HTMLTextAreaElement>) => setNotes(e.currentTarget.value)} className="w-full bg-gray-700 border border-gray-600 rounded-md py-2 px-3 text-white focus:outline-none focus:ring-teal-500 focus:border-teal-500"/></div>
                     </main>
                     <footer className="p-4 flex justify-end gap-3 bg-gray-700/50 border-t border-gray-700">
                         <button type="button" onClick={onClose} className="bg-gray-600 hover:bg-gray-500 text-white font-semibold py-2 px-4 rounded-md transition-colors">Cancel</button>
@@ -75,7 +81,7 @@ export const ClientManagerModal: React.FC<ClientManagerModalProps> = ({ clients,
     };
 
     const handleDelete = (id: string) => {
-        if (window.confirm('Are you sure you want to delete this client? This cannot be undone.')) {
+        if ((window as any).confirm('Are you sure you want to delete this client? This cannot be undone.')) {
             onDelete(id);
         }
     };

@@ -1,3 +1,5 @@
+import { Platform as PlatformEnum, PostStatus as PostStatusEnum } from './types';
+
 export enum Platform {
     Blog = 'Blog',
     Instagram = 'Instagram',
@@ -14,9 +16,16 @@ export enum Platform {
 export enum PostStatus {
     Draft = 'Draft',
     ForReview = 'For Review',
+    Scheduled = 'Scheduled',
     Approved = 'Approved',
     Published = 'Published',
     Archived = 'Archived'
+}
+
+export enum ClientStatus {
+    Pending = 'Pending Approval',
+    Approved = 'Approved',
+    Revisions = 'Revisions Requested',
 }
 
 export interface Client {
@@ -39,10 +48,16 @@ export interface Post {
     category?: string;
     status: PostStatus;
     createdAt: string; // ISO String
+    scheduledAt?: string; // ISO String for scheduled posts
     generationOptions?: GenerationOptions;
     clientId: string;
     internalNotes?: string;
     clientFeedback?: string;
+    // New fields for client proofing
+    shareId?: string;
+    sharedAt?: string;
+    clientStatus?: ClientStatus;
+    lastClientUpdate?: string;
 }
 
 export interface ResearchReport {
@@ -52,6 +67,7 @@ export interface ResearchReport {
     keywordsToExclude: string[];
     negativePrompt: string;
     sfxPrompt?: string;
+    trendingTopics?: string[];
 }
 
 export interface GenerationOptions {
@@ -108,6 +124,13 @@ export interface UserSettings {
     apiKeyOption: 'platform' | 'custom';
     customGoogleApiKey?: string;
     customElevenLabsApiKey?: string;
+}
+
+export interface UserData {
+    posts: Post[];
+    projects: Project[];
+    clients: Client[];
+    userSettings: UserSettings;
 }
 
 export type ApiKeys = {

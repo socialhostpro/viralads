@@ -1,11 +1,13 @@
 import React, { useRef, useState, useEffect } from 'react';
-import { type Post, Platform, PostStatus } from '../types';
+import { type Post, Platform, PostStatus, ClientStatus, ApiKeys } from '../types';
 import {
   BlogIcon, InstagramIcon, FacebookIcon, XIcon, TikTokIcon,
   BlueskyIcon, LinkedInIcon, PressReleaseIcon, PlayIcon,
-  YouTubeIcon, PodcastIcon
+  YouTubeIcon, PodcastIcon,
+  ClockIcon
 } from './Icons';
 import { Spinner } from './Spinner';
+import { fetchVideoWithApiKey } from '../services/geminiService';
 
 interface PostCardProps {
   post: Post;
@@ -13,6 +15,7 @@ interface PostCardProps {
   onClick: (post: Post) => void;
   onSelect: (id: string) => void;
   isSelected: boolean;
+  apiKeys?: ApiKeys;
 }
 
 const platformAssets: Record<Platform, { icon: React.ElementType, style: string }> = {
@@ -31,23 +34,77 @@ const platformAssets: Record<Platform, { icon: React.ElementType, style: string 
 const statusColors: Record<PostStatus, string> = {
     [PostStatus.Draft]: 'text-yellow-400',
     [PostStatus.ForReview]: 'text-cyan-400',
+    [PostStatus.Scheduled]: 'text-blue-400',
     [PostStatus.Approved]: 'text-lime-400',
     [PostStatus.Published]: 'text-green-400',
     [PostStatus.Archived]: 'text-gray-400',
-}
+};
 
-export const PostCard: React.FC<PostCardProps> = ({ post, clientName, onClick, onSelect, isSelected }) => {
+const clientStatusIndicator: Record<ClientStatus, { color: string; label: string }> = {
+    [ClientStatus.Pending]: { color: 'bg-yellow-400', label: 'Pending Client Approval' },
+    [ClientStatus.Revisions]: { color: 'bg-orange-400', label: 'Client Revisions Requested' },
+    [ClientStatus.Approved]: { color: 'bg-green-400', label: 'Client Approved' },
+};
+
+
+export const PostCard: React.FC<PostCardProps> = ({ post, clientName, onClick, onSelect, isSelected, apiKeys }) => {
   const { icon: PlatformIcon, style: platformStyle } = platformAssets[post.platform];
   const hasMedia = post.imageUrl || post.videoUrl;
   const contentRef = useRef<HTMLParagraphElement>(null);
   const [isClamped, setIsClamped] = useState(false);
+  const [videoObjectUrl, setVideoObjectUrl] = useState<string | null>(null);
+  const [isFetchingVideo, setIsFetchingVideo] = useState(false);
+  const [videoFetchFailed, setVideoFetchFailed] = useState(false);
+
+  const videoApiUrl = (post.videoUrl && post.videoUrl.startsWith('https://')) ? post.videoUrl : undefined;
+
+  useEffect(() => {
+    let isCancelled = false;
+    let currentObjectUrl: string | null = null;
+
+    const fetchVideo = async () => {
+        if (!videoApiUrl) {
+            setVideoObjectUrl(null);
+            setIsFetchingVideo(false);
+            return;
+        }
+        setIsFetchingVideo(true);
+        setVideoFetchFailed(false);
+        try {
+            const blob = await fetchVideoWithApiKey(videoApiUrl, apiKeys);
+            if (!isCancelled) {
+                currentObjectUrl = URL.createObjectURL(blob);
+                setVideoObjectUrl(currentObjectUrl);
+            }
+        } catch (e) {
+            console.error("Failed to load video for card", e);
+            if (!isCancelled) {
+                setVideoFetchFailed(true);
+            }
+        } finally {
+            if (!isCancelled) {
+                setIsFetchingVideo(false);
+            }
+        }
+    };
+
+    fetchVideo();
+
+    return () => {
+        isCancelled = true;
+        if (currentObjectUrl) {
+            URL.revokeObjectURL(currentObjectUrl);
+        }
+    };
+  }, [videoApiUrl, apiKeys]);
 
   useEffect(() => {
     const element = contentRef.current;
     if (!element) return;
 
     const checkClamping = () => {
-      if (element.scrollHeight > element.clientHeight) {
+      // FIX: Properties 'scrollHeight' and 'clientHeight' may not exist on type 'HTMLParagraphElement' in some TS configs. Cast to 'any' to bypass.
+      if ((element as any).scrollHeight > (element as any).clientHeight) {
         setIsClamped(true);
       } else {
         setIsClamped(false);
@@ -55,11 +112,13 @@ export const PostCard: React.FC<PostCardProps> = ({ post, clientName, onClick, o
     };
     
     const timeoutId = setTimeout(checkClamping, 100);
-    window.addEventListener('resize', checkClamping);
+    // FIX: Property 'addEventListener' does not exist on type 'Window'. Cast window to 'any' to bypass the type error.
+    (window as any).addEventListener('resize', checkClamping);
 
     return () => {
         clearTimeout(timeoutId);
-        window.removeEventListener('resize', checkClamping);
+        // FIX: Property 'removeEventListener' does not exist on type 'Window'. Cast window to 'any' to bypass the type error.
+        (window as any).removeEventListener('resize', checkClamping);
     };
   }, [post.content]);
   
@@ -76,36 +135,36 @@ export const PostCard: React.FC<PostCardProps> = ({ post, clientName, onClick, o
             aria-label={`View details for ${post.platform} post`}
             >
             {/* Media Background */}
-            {post.videoUrl && post.videoUrl !== 'GENERATING' && post.videoUrl !== 'FAILED' ? (
-                <video 
+            {videoObjectUrl ? (
+                 <video 
                     key={post.id}
-                    src={post.videoUrl} 
+                    src={videoObjectUrl} 
                     poster={post.imageUrl}
                     autoPlay 
                     loop 
                     muted 
                     playsInline 
-                    className="absolute inset-0 w-full h-full object-cover bg-gray-900" 
+                    className="absolute inset-0 w-full h-full object-contain bg-black" 
                 />
             ) : post.imageUrl ? (
                 <img src={post.imageUrl} alt="" className="absolute inset-0 w-full h-full object-cover" />
             ) : null}
 
             {/* Generating State */}
-            {post.videoUrl === 'GENERATING' && (
+            {(isFetchingVideo || post.videoUrl === 'GENERATING') && (
                 <div className="absolute inset-0 bg-gray-900 flex flex-col items-center justify-center">
                     {post.imageUrl && (
                         <img src={post.imageUrl} alt="Generating..." className="absolute inset-0 w-full h-full object-cover opacity-40 blur-sm" />
                     )}
                     <div className="relative z-10 flex flex-col items-center justify-center text-center p-4">
                         <Spinner />
-                        <p className="text-sm font-semibold text-white mt-2 drop-shadow-md">Generating video...</p>
+                        <p className="text-sm font-semibold text-white mt-2 drop-shadow-md">{isFetchingVideo ? "Loading video..." : "Generating video..."}</p>
                     </div>
                 </div>
             )}
             
             {/* Failed State */}
-            {post.videoUrl === 'FAILED' && (
+            {(post.videoUrl === 'FAILED' || videoFetchFailed) && (
                  <div className="absolute inset-0 bg-red-900/50 flex flex-col items-center justify-center p-4 text-center">
                     {post.imageUrl && (
                         <img src={post.imageUrl} alt="Failed" className="absolute inset-0 w-full h-full object-cover opacity-20" />
@@ -114,7 +173,9 @@ export const PostCard: React.FC<PostCardProps> = ({ post, clientName, onClick, o
                         <svg className="h-8 w-8 text-red-400 drop-shadow-md" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                             <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
                         </svg>
-                        <p className="text-sm font-semibold text-red-200 mt-2 drop-shadow-md">Video generation failed.</p>
+                        <p className="text-sm font-semibold text-red-200 mt-2 drop-shadow-md">
+                            {post.videoUrl === 'FAILED' ? 'Video generation failed.' : 'Could not load video.'}
+                        </p>
                     </div>
                 </div>
             )}
@@ -124,8 +185,16 @@ export const PostCard: React.FC<PostCardProps> = ({ post, clientName, onClick, o
             
             {/* Unified Content and Footer */}
             <div className="relative p-4 text-white z-10 text-left flex flex-col h-full">
-                <div className={`p-2 rounded-full self-start ${platformStyle}`}>
-                    <PlatformIcon className="h-6 w-6 text-white" />
+                <div className="flex items-center gap-2">
+                    <div className={`p-2 rounded-full self-start ${platformStyle}`}>
+                        <PlatformIcon className="h-6 w-6 text-white" />
+                    </div>
+                    {post.clientStatus && (
+                         <div
+                            title={clientStatusIndicator[post.clientStatus].label}
+                            className={`h-3 w-3 rounded-full ${clientStatusIndicator[post.clientStatus].color}`}
+                         />
+                    )}
                 </div>
                 
                 <div className="mt-auto">
@@ -137,6 +206,12 @@ export const PostCard: React.FC<PostCardProps> = ({ post, clientName, onClick, o
                         {post.category && <p className="text-xs text-teal-300 bg-teal-900/50 inline-block px-2 py-0.5 rounded-full">{post.category}</p>}
                         <p className={`text-xs font-semibold ${statusColors[post.status]}`}>{post.status}</p>
                     </div>
+                    {post.status === PostStatus.Scheduled && post.scheduledAt && (
+                        <div className="flex items-center gap-1.5 mt-1 text-xs text-blue-300 bg-blue-900/50 inline-flex px-2 py-0.5 rounded-full">
+                           <ClockIcon className="h-3 w-3" />
+                           <span>{new Date(post.scheduledAt).toLocaleDateString()} {new Date(post.scheduledAt).toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'})}</span>
+                        </div>
+                    )}
                 </div>
             </div>
 

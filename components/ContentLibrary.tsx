@@ -1,5 +1,5 @@
 import React, { useState, useMemo } from 'react';
-import { Post, Platform, PostStatus, Client } from '../types';
+import { Post, Platform, PostStatus, Client, ClientStatus, ApiKeys } from '../types';
 import { PostCard } from './PostCard';
 import { PostDetailModal } from './PostDetailModal';
 import { CollectionIcon, SearchIcon, ShareIcon, TrashIcon } from './Icons';
@@ -16,13 +16,16 @@ interface ContentLibraryProps {
   onBulkUpdateStatus: (ids: string[], status: PostStatus) => void;
   onBulkSendToN8n: (ids: string[]) => void;
   onRepurpose: (sourcePost: Post, targetPlatforms: Platform[]) => void;
+  apiKeys?: ApiKeys;
 }
 
 const ALL_STATUSES = Object.values(PostStatus);
+const ALL_CLIENT_STATUSES = Object.values(ClientStatus);
 
 export const ContentLibrary: React.FC<ContentLibraryProps> = ({ 
     posts, clients, onDelete, onDownload, onSendToN8n, onUpdatePost, 
-    onBulkDelete, onBulkUpdateStatus, onBulkSendToN8n, onRepurpose
+    onBulkDelete, onBulkUpdateStatus, onBulkSendToN8n, onRepurpose,
+    apiKeys
 }) => {
   const [selectedPost, setSelectedPost] = useState<Post | null>(null);
   const [selectedPostIds, setSelectedPostIds] = useState<string[]>([]);
@@ -30,6 +33,7 @@ export const ContentLibrary: React.FC<ContentLibraryProps> = ({
   const [activeClientFilter, setActiveClientFilter] = useState<string>('');
   const [activePlatformFilters, setActivePlatformFilters] = useState<Platform[]>([]);
   const [activeStatusFilters, setActiveStatusFilters] = useState<PostStatus[]>([]);
+  const [activeClientStatusFilter, setActiveClientStatusFilter] = useState<ClientStatus | ''>('');
   const [sortBy, setSortBy] = useState<'createdAt_desc' | 'createdAt_asc' | 'platform'>('createdAt_desc');
   
   const clientMap = React.useMemo(() => new Map(clients.map(c => [c.id, c.name])), [clients]);
@@ -53,14 +57,15 @@ export const ContentLibrary: React.FC<ContentLibraryProps> = ({
   };
 
   const handleBulkDelete = () => {
-    if(window.confirm(`Are you sure you want to delete ${selectedPostIds.length} posts?`)) {
+    if((window as any).confirm(`Are you sure you want to delete ${selectedPostIds.length} posts?`)) {
         onBulkDelete(selectedPostIds);
         setSelectedPostIds([]);
     }
   }
 
   const handleBulkStatusChange = (e: React.ChangeEvent<HTMLSelectElement>) => {
-    const status = e.target.value as PostStatus;
+    // FIX: Use e.currentTarget instead of e.target to ensure correct type inference.
+    const status = e.currentTarget.value as PostStatus;
     if (status) {
         onBulkUpdateStatus(selectedPostIds, status);
         setSelectedPostIds([]);
@@ -88,10 +93,11 @@ export const ContentLibrary: React.FC<ContentLibraryProps> = ({
       const clientMatch = !activeClientFilter || post.clientId === activeClientFilter;
       const platformMatch = activePlatformFilters.length === 0 || activePlatformFilters.includes(post.platform);
       const statusMatch = activeStatusFilters.length === 0 || activeStatusFilters.includes(post.status);
-      
-      return searchMatch && clientMatch && platformMatch && statusMatch;
+      const clientStatusMatch = !activeClientStatusFilter || post.clientStatus === activeClientStatusFilter;
+
+      return searchMatch && clientMatch && platformMatch && statusMatch && clientStatusMatch;
     });
-  }, [posts, searchQuery, sortBy, activeClientFilter, activePlatformFilters, activeStatusFilters]);
+  }, [posts, searchQuery, sortBy, activeClientFilter, activePlatformFilters, activeStatusFilters, activeClientStatusFilter]);
   
   return (
     <div className="bg-gray-800/50 rounded-lg p-6 shadow-inner flex flex-col h-full">
@@ -101,17 +107,27 @@ export const ContentLibrary: React.FC<ContentLibraryProps> = ({
             <div className="mt-4 flex flex-wrap gap-4 items-center">
                 <div className="relative flex-grow min-w-[200px]">
                     <SearchIcon className="absolute left-3 top-1/2 -translate-y-1/2 h-5 w-5 text-gray-400" />
-                    <input type="text" placeholder="Search content or category..." value={searchQuery} onChange={e => setSearchQuery(e.target.value)} className="w-full bg-gray-700 border border-gray-600 rounded-md shadow-sm py-2 pl-10 pr-3 text-white focus:outline-none focus:ring-teal-500 focus:border-teal-500"/>
+                    {/* FIX: Use e.currentTarget instead of e.target to ensure correct type inference. */}
+                    <input type="text" placeholder="Search content or category..." value={searchQuery} onChange={(e: React.ChangeEvent<HTMLInputElement>) => setSearchQuery(e.currentTarget.value)} className="w-full bg-gray-700 border border-gray-600 rounded-md shadow-sm py-2 pl-10 pr-3 text-white focus:outline-none focus:ring-teal-500 focus:border-teal-500"/>
                 </div>
-                <select value={activeClientFilter} onChange={e => setActiveClientFilter(e.target.value)} className="bg-gray-700 border border-gray-600 rounded-md shadow-sm py-2 px-3 text-white focus:outline-none focus:ring-teal-500 focus:border-teal-500">
-                    <option value="">All Clients</option>
-                    {clients.map(c => <option key={c.id} value={c.id}>{c.name}</option>)}
-                </select>
-                <select value={sortBy} onChange={e => setSortBy(e.target.value as any)} className="bg-gray-700 border border-gray-600 rounded-md shadow-sm py-2 px-3 text-white focus:outline-none focus:ring-teal-500 focus:border-teal-500">
-                    <option value="createdAt_desc">Newest First</option>
-                    <option value="createdAt_asc">Oldest First</option>
-                    <option value="platform">By Platform</option>
-                </select>
+                <div className="flex gap-4">
+                    {/* FIX: Use e.currentTarget instead of e.target to ensure correct type inference. */}
+                    <select value={activeClientFilter} onChange={(e: React.ChangeEvent<HTMLSelectElement>) => setActiveClientFilter(e.currentTarget.value)} className="bg-gray-700 border border-gray-600 rounded-md shadow-sm py-2 px-3 text-white focus:outline-none focus:ring-teal-500 focus:border-teal-500">
+                        <option value="">All Clients</option>
+                        {clients.map(c => <option key={c.id} value={c.id}>{c.name}</option>)}
+                    </select>
+                     {/* FIX: Use e.currentTarget instead of e.target to ensure correct type inference. */}
+                    <select value={activeClientStatusFilter} onChange={(e: React.ChangeEvent<HTMLSelectElement>) => setActiveClientStatusFilter(e.currentTarget.value as ClientStatus | '')} className="bg-gray-700 border border-gray-600 rounded-md shadow-sm py-2 px-3 text-white focus:outline-none focus:ring-teal-500 focus:border-teal-500">
+                        <option value="">All Client Statuses</option>
+                        {ALL_CLIENT_STATUSES.map(s => <option key={s} value={s}>{s}</option>)}
+                    </select>
+                    {/* FIX: Use e.currentTarget instead of e.target to ensure correct type inference. */}
+                    <select value={sortBy} onChange={(e: React.ChangeEvent<HTMLSelectElement>) => setSortBy(e.currentTarget.value as any)} className="bg-gray-700 border border-gray-600 rounded-md shadow-sm py-2 px-3 text-white focus:outline-none focus:ring-teal-500 focus:border-teal-500">
+                        <option value="createdAt_desc">Newest First</option>
+                        <option value="createdAt_asc">Oldest First</option>
+                        <option value="platform">By Platform</option>
+                    </select>
+                </div>
             </div>
             <div className="mt-4 space-y-2">
                 <div><span className="text-sm font-medium text-gray-400 mr-3">Platforms:</span>{ALL_PLATFORMS.map(p => (<button key={p} onClick={() => handlePlatformFilterToggle(p)} className={`text-xs mr-2 mb-2 py-1 px-2.5 rounded-full transition-colors duration-200 ${activePlatformFilters.includes(p) ? 'bg-teal-500 text-white' : 'bg-gray-700 hover:bg-gray-600'}`}>{p}</button>))}</div>
@@ -152,6 +168,7 @@ export const ContentLibrary: React.FC<ContentLibraryProps> = ({
                     onClick={() => setSelectedPost(post)}
                     onSelect={handleSelectPost}
                     isSelected={selectedPostIds.includes(post.id)}
+                    apiKeys={apiKeys}
                 />
             ))}
             </div>
@@ -168,6 +185,7 @@ export const ContentLibrary: React.FC<ContentLibraryProps> = ({
                 onSendToN8n={onSendToN8n}
                 onUpdatePost={onUpdatePost}
                 onRepurpose={onRepurpose}
+                apiKeys={apiKeys}
             />
         )}
     </div>

@@ -1,6 +1,5 @@
-
-import React, { useState, useCallback, useEffect } from 'react';
-import { Post, GenerationOptions, GenerationState, PostStatus, Platform, Project, ResearchReport, User, UserSettings, Client } from './types';
+import React, { useState, useCallback, useEffect, useMemo } from 'react';
+import { Post, GenerationOptions, GenerationState, PostStatus, Platform, Project, ResearchReport, User, UserSettings, Client, UserData, ApiKeys } from './types';
 import { ControlPanel } from './components/ControlPanel';
 import { ContentLibrary } from './components/ContentLibrary';
 import { generateContentForAllPlatforms, performResearch } from './services/geminiService';
@@ -10,6 +9,7 @@ import { Spinner } from './components/Spinner';
 import { SettingsModal } from './components/SettingsModal';
 import { WalletModal } from './components/WalletModal';
 import { ClientManagerModal } from './components/ClientManagerModal';
+import { ProofingView } from './components/ProofingView';
 
 const TONE_OPTIONS = ['Viral & Engaging', 'Professional', 'Witty', 'Casual', 'Formal', 'Inspirational'];
 
@@ -90,6 +90,7 @@ const ProjectFormModal: React.FC<ProjectFormModalProps> = ({ project, onClose, o
     const [negativePrompt, setNegativePrompt] = useState('');
     const [sfxPrompt, setSfxPrompt] = useState('');
     const [research, setResearch] = useState<ResearchReport | null>(null);
+    const [trendingTopics, setTrendingTopics] = useState<string[]>([]);
     const [isResearching, setIsResearching] = useState(false);
 
     useEffect(() => {
@@ -106,27 +107,42 @@ const ProjectFormModal: React.FC<ProjectFormModalProps> = ({ project, onClose, o
             setNegativePrompt(project.negativePrompt);
             setSfxPrompt(project.sfxPrompt || '');
             setResearch(project.research || null);
+            setTrendingTopics(project.research?.trendingTopics || []);
         } else {
             setClientId(selectedClientId || '');
+            setResearch(null);
+            setTrendingTopics([]);
         }
     }, [project, selectedClientId]);
 
     const handleSubmit = (e: React.FormEvent) => {
         e.preventDefault();
         if (!clientId) {
-            alert('Please select a client for this project.');
+            (window as any).alert('Please select a client for this project.');
             return;
         }
         onSubmit({ name, clientId, topic, sourceUrl, targetAudience, tone, category, keywordsToInclude, keywordsToExclude, negativePrompt, sfxPrompt, research: research || undefined });
     };
+
+    const handleAddKeyword = (keyword: string) => {
+        setKeywordsToInclude(prev => {
+            const currentKeywords = prev.split(',').map(k => k.trim()).filter(Boolean);
+            const lowerCaseKeywords = currentKeywords.map(k => k.toLowerCase());
+            if (lowerCaseKeywords.includes(keyword.toLowerCase())) {
+                return prev;
+            }
+            return [...currentKeywords, keyword].join(', ');
+        });
+    };
     
     const handleResearch = async () => {
         if (!topic && !sourceUrl) {
-            alert('Please provide a Topic or a Source URL to start research.');
+            (window as any).alert('Please provide a Topic or a Source URL to start research.');
             return;
         }
         setIsResearching(true);
         setResearch(null);
+        setTrendingTopics([]);
         try {
             const report = await performResearch(topic, sourceUrl);
             setResearch(report);
@@ -134,8 +150,9 @@ const ProjectFormModal: React.FC<ProjectFormModalProps> = ({ project, onClose, o
             setKeywordsToExclude(report.keywordsToExclude.join(', '));
             setNegativePrompt(report.negativePrompt);
             setSfxPrompt(report.sfxPrompt || '');
+            setTrendingTopics(report.trendingTopics || []);
         } catch(error) {
-            alert(error instanceof Error ? error.message : "An unknown error occurred during research.");
+            (window as any).alert(error instanceof Error ? error.message : "An unknown error occurred during research.");
             console.error(error);
         } finally {
             setIsResearching(false);
@@ -153,14 +170,18 @@ const ProjectFormModal: React.FC<ProjectFormModalProps> = ({ project, onClose, o
                     <main className="p-6 space-y-4 max-h-[70vh] overflow-y-auto">
                         <div>
                             <label className="block text-sm font-medium text-gray-300 mb-1">Client</label>
-                            <select value={clientId} onChange={e => setClientId(e.target.value)} required className="w-full bg-gray-700 border border-gray-600 rounded-md py-2 px-3 text-white focus:outline-none focus:ring-teal-500 focus:border-teal-500">
+                            {/* FIX: Use e.currentTarget instead of e.target to ensure correct type inference. */}
+                            <select value={clientId} onChange={(e: React.ChangeEvent<HTMLSelectElement>) => setClientId(e.currentTarget.value)} required className="w-full bg-gray-700 border border-gray-600 rounded-md py-2 px-3 text-white focus:outline-none focus:ring-teal-500 focus:border-teal-500">
                                 <option value="" disabled>-- Select a Client --</option>
                                 {clients.map(c => <option key={c.id} value={c.id}>{c.name}</option>)}
                             </select>
                         </div>
-                        <div><label className="block text-sm font-medium text-gray-300 mb-1">Project Name</label><input value={name} onChange={e => setName(e.target.value)} required className="w-full bg-gray-700 border border-gray-600 rounded-md py-2 px-3 text-white focus:outline-none focus:ring-teal-500 focus:border-teal-500"/></div>
-                        <div><label className="block text-sm font-medium text-gray-300 mb-1">Topic / Product / Person</label><input value={topic} onChange={e => setTopic(e.target.value)} className="w-full bg-gray-700 border border-gray-600 rounded-md py-2 px-3 text-white focus:outline-none focus:ring-teal-500 focus:border-teal-500"/></div>
-                        <div><label className="block text-sm font-medium text-gray-300 mb-1">Source URL (Optional)</label><input type="url" value={sourceUrl} onChange={e => setSourceUrl(e.target.value)} className="w-full bg-gray-700 border border-gray-600 rounded-md py-2 px-3 text-white focus:outline-none focus:ring-teal-500 focus:border-teal-500"/></div>
+                        {/* FIX: Use e.currentTarget instead of e.target to ensure correct type inference. */}
+                        <div><label className="block text-sm font-medium text-gray-300 mb-1">Project Name</label><input value={name} onChange={(e: React.ChangeEvent<HTMLInputElement>) => setName(e.currentTarget.value)} required className="w-full bg-gray-700 border border-gray-600 rounded-md py-2 px-3 text-white focus:outline-none focus:ring-teal-500 focus:border-teal-500"/></div>
+                        {/* FIX: Use e.currentTarget instead of e.target to ensure correct type inference. */}
+                        <div><label className="block text-sm font-medium text-gray-300 mb-1">Topic / Product / Person</label><input value={topic} onChange={(e: React.ChangeEvent<HTMLInputElement>) => setTopic(e.currentTarget.value)} className="w-full bg-gray-700 border border-gray-600 rounded-md py-2 px-3 text-white focus:outline-none focus:ring-teal-500 focus:border-teal-500"/></div>
+                        {/* FIX: Use e.currentTarget instead of e.target to ensure correct type inference. */}
+                        <div><label className="block text-sm font-medium text-gray-300 mb-1">Source URL (Optional)</label><input type="url" value={sourceUrl} onChange={(e: React.ChangeEvent<HTMLInputElement>) => setSourceUrl(e.currentTarget.value)} className="w-full bg-gray-700 border border-gray-600 rounded-md py-2 px-3 text-white focus:outline-none focus:ring-teal-500 focus:border-teal-500"/></div>
                         
                         <div className="bg-gray-900/50 p-4 rounded-lg space-y-3 ring-1 ring-gray-700">
                             <div className="flex justify-between items-center">
@@ -171,31 +192,54 @@ const ProjectFormModal: React.FC<ProjectFormModalProps> = ({ project, onClose, o
                                 </button>
                             </div>
                             {research && (
-                                <div className="border-t border-gray-600 pt-3 space-y-2 text-sm">
+                                <div className="border-t border-gray-600 pt-3 space-y-3 text-sm">
                                     <p><span className="font-semibold text-gray-400">Sentiment:</span> <span className="font-bold text-teal-300">{research.sentiment}</span></p>
                                     <p className="text-gray-300"><span className="font-semibold text-gray-400">Summary:</span> {research.summary}</p>
+                                    {trendingTopics.length > 0 && (
+                                        <div>
+                                            <p className="font-semibold text-gray-400 mb-1.5">Trending Topics (click to add as keyword):</p>
+                                            <div className="flex flex-wrap gap-2">
+                                                {trendingTopics.map((topic, index) => (
+                                                    <button
+                                                        key={index}
+                                                        type="button"
+                                                        onClick={() => handleAddKeyword(topic)}
+                                                        className="text-xs bg-gray-600 hover:bg-gray-500 text-gray-200 font-medium py-1 px-2.5 rounded-full transition-colors"
+                                                    >
+                                                        + {topic}
+                                                    </button>
+                                                ))}
+                                            </div>
+                                        </div>
+                                    )}
                                 </div>
                             )}
                         </div>
 
-                        <div><label className="block text-sm font-medium text-gray-300 mb-1">Target Audience</label><input value={targetAudience} onChange={e => setTargetAudience(e.target.value)} className="w-full bg-gray-700 border border-gray-600 rounded-md py-2 px-3 text-white focus:outline-none focus:ring-teal-500 focus:border-teal-500"/></div>
+                        {/* FIX: Use e.currentTarget instead of e.target to ensure correct type inference. */}
+                        <div><label className="block text-sm font-medium text-gray-300 mb-1">Target Audience</label><input value={targetAudience} onChange={(e: React.ChangeEvent<HTMLInputElement>) => setTargetAudience(e.currentTarget.value)} className="w-full bg-gray-700 border border-gray-600 rounded-md py-2 px-3 text-white focus:outline-none focus:ring-teal-500 focus:border-teal-500"/></div>
                         <div>
                             <label className="block text-sm font-medium text-gray-300 mb-1">Tone of Voice</label>
-                            <input list="tone-options" value={tone} onChange={e => setTone(e.target.value)} className="w-full bg-gray-700 border border-gray-600 rounded-md py-2 px-3 text-white focus:outline-none focus:ring-teal-500 focus:border-teal-500"/>
+                            {/* FIX: Use e.currentTarget instead of e.target to ensure correct type inference. */}
+                            <input list="tone-options" value={tone} onChange={(e: React.ChangeEvent<HTMLInputElement>) => setTone(e.currentTarget.value)} className="w-full bg-gray-700 border border-gray-600 rounded-md py-2 px-3 text-white focus:outline-none focus:ring-teal-500 focus:border-teal-500"/>
                             <datalist id="tone-options">
                                 {TONE_OPTIONS.map(opt => <option key={opt} value={opt} />)}
                             </datalist>
                         </div>
                         <div>
                             <label className="block text-sm font-medium text-gray-300 mb-1">Category (Optional)</label>
-                            <input list="category-options" value={category} onChange={e => setCategory(e.target.value)} className="w-full bg-gray-700 border border-gray-600 rounded-md py-2 px-3 text-white focus:outline-none focus:ring-teal-500 focus:border-teal-500"/>
+                            {/* FIX: Use e.currentTarget instead of e.target to ensure correct type inference. */}
+                            <input list="category-options" value={category} onChange={(e: React.ChangeEvent<HTMLInputElement>) => setCategory(e.currentTarget.value)} className="w-full bg-gray-700 border border-gray-600 rounded-md py-2 px-3 text-white focus:outline-none focus:ring-teal-500 focus:border-teal-500"/>
                             <datalist id="category-options">
                                 {categories.map(cat => <option key={cat} value={cat} />)}
                             </datalist>
                         </div>
-                        <div><label className="block text-sm font-medium text-gray-300 mb-1">Keywords to Include (AI Suggested)</label><input value={keywordsToInclude} onChange={e => setKeywordsToInclude(e.target.value)} className="w-full bg-gray-700 border border-gray-600 rounded-md py-2 px-3 text-white focus:outline-none focus:ring-teal-500 focus:border-teal-500"/></div>
-                        <div><label className="block text-sm font-medium text-gray-300 mb-1">Keywords to Exclude (AI Suggested)</label><input value={keywordsToExclude} onChange={e => setKeywordsToExclude(e.target.value)} className="w-full bg-gray-700 border border-gray-600 rounded-md py-2 px-3 text-white focus:outline-none focus:ring-teal-500 focus:border-teal-500"/></div>
-                        <div><label className="block text-sm font-medium text-gray-300 mb-1">Negative Prompt (AI Suggested)</label><textarea rows={2} value={negativePrompt} onChange={e => setNegativePrompt(e.target.value)} className="w-full bg-gray-700 border border-gray-600 rounded-md py-2 px-3 text-white focus:outline-none focus:ring-teal-500 focus:border-teal-500"/></div>
+                        {/* FIX: Use e.currentTarget instead of e.target to ensure correct type inference. */}
+                        <div><label className="block text-sm font-medium text-gray-300 mb-1">Keywords to Include (AI Suggested)</label><input value={keywordsToInclude} onChange={(e: React.ChangeEvent<HTMLInputElement>) => setKeywordsToInclude(e.currentTarget.value)} className="w-full bg-gray-700 border border-gray-600 rounded-md py-2 px-3 text-white focus:outline-none focus:ring-teal-500 focus:border-teal-500"/></div>
+                        {/* FIX: Use e.currentTarget instead of e.target to ensure correct type inference. */}
+                        <div><label className="block text-sm font-medium text-gray-300 mb-1">Keywords to Exclude (AI Suggested)</label><input value={keywordsToExclude} onChange={(e: React.ChangeEvent<HTMLInputElement>) => setKeywordsToExclude(e.currentTarget.value)} className="w-full bg-gray-700 border border-gray-600 rounded-md py-2 px-3 text-white focus:outline-none focus:ring-teal-500 focus:border-teal-500"/></div>
+                        {/* FIX: Use e.currentTarget instead of e.target to ensure correct type inference. */}
+                        <div><label className="block text-sm font-medium text-gray-300 mb-1">Negative Prompt (AI Suggested)</label><textarea rows={2} value={negativePrompt} onChange={(e: React.ChangeEvent<HTMLTextAreaElement>) => setNegativePrompt(e.currentTarget.value)} className="w-full bg-gray-700 border border-gray-600 rounded-md py-2 px-3 text-white focus:outline-none focus:ring-teal-500 focus:border-teal-500"/></div>
                     </main>
                     <footer className="p-4 flex justify-end gap-3 bg-gray-700/50 border-t border-gray-700">
                         <button type="button" onClick={onClose} className="bg-gray-600 hover:bg-gray-500 text-white font-semibold py-2 px-4 rounded-md transition-colors">Cancel</button>
@@ -240,7 +284,7 @@ const ProjectManagerModal: React.FC<ProjectManagerModalProps> = ({ projects, cli
     };
 
     const handleDelete = (id: string) => {
-        if (window.confirm('Are you sure you want to delete this project?')) {
+        if ((window as any).confirm('Are you sure you want to delete this project?')) {
             onDelete(id);
         }
     };
@@ -258,7 +302,8 @@ const ProjectManagerModal: React.FC<ProjectManagerModalProps> = ({ projects, cli
                             <button onClick={() => setView('grid')} className={`px-3 py-1 rounded-md text-sm ${view === 'grid' ? 'bg-teal-600 text-white' : 'text-gray-300 hover:bg-gray-600'}`}><GridIcon className="h-5 w-5"/></button>
                             <button onClick={() => setView('list')} className={`px-3 py-1 rounded-md text-sm ${view === 'list' ? 'bg-teal-600 text-white' : 'text-gray-300 hover:bg-gray-600'}`}><ListIcon className="h-5 w-5"/></button>
                         </div>
-                        <select value={clientFilter} onChange={e => setClientFilter(e.target.value)} className="bg-gray-700 border border-gray-600 rounded-md shadow-sm py-1.5 px-3 text-white text-sm focus:outline-none focus:ring-teal-500 focus:border-teal-500">
+                        {/* FIX: Use e.currentTarget instead of e.target to ensure correct type inference. */}
+                        <select value={clientFilter} onChange={(e: React.ChangeEvent<HTMLSelectElement>) => setClientFilter(e.currentTarget.value)} className="bg-gray-700 border border-gray-600 rounded-md shadow-sm py-1.5 px-3 text-white text-sm focus:outline-none focus:ring-teal-500 focus:border-teal-500">
                             <option value="">All Clients</option>
                             {clients.map(c => <option key={c.id} value={c.id}>{c.name}</option>)}
                         </select>
@@ -334,12 +379,12 @@ const UserDropdown: React.FC<UserDropdownProps> = ({ user, onSettings, onWallet,
 
     useEffect(() => {
         const handleClickOutside = (event: MouseEvent) => {
-            if (dropdownRef.current && !dropdownRef.current.contains(event.target as Node)) {
+            if (dropdownRef.current && !(dropdownRef.current as any).contains(event.target as any)) {
                 setIsOpen(false);
             }
         };
-        document.addEventListener('mousedown', handleClickOutside);
-        return () => document.removeEventListener('mousedown', handleClickOutside);
+        (window as any).document.addEventListener('mousedown', handleClickOutside);
+        return () => (window as any).document.removeEventListener('mousedown', handleClickOutside);
     }, []);
 
     return (
@@ -361,6 +406,103 @@ const UserDropdown: React.FC<UserDropdownProps> = ({ user, onSettings, onWallet,
     );
 };
 
+// --- LOGIN SCREEN COMPONENT ---
+interface LoginScreenProps {
+    onLogin: (user: User) => void;
+}
+const LoginScreen: React.FC<LoginScreenProps> = ({ onLogin }) => {
+    const [email, setEmail] = useState('demo@example.com');
+    const [password, setPassword] = useState('password123');
+    const [error, setError] = useState('');
+
+    const handleSubmit = (e: React.FormEvent) => {
+        e.preventDefault();
+        setError('');
+        // This is a simulated login. In a real app, you would make an API call.
+        if (email === 'demo@example.com' && password === 'password123') {
+            const user: User = {
+                name: 'Alex Doe',
+                email: 'demo@example.com',
+                avatarUrl: `https://api.dicebear.com/8.x/initials/svg?seed=Alex%20Doe`,
+                walletBalance: 50.00,
+            };
+            onLogin(user);
+        } else {
+            setError('Invalid credentials. Please use the demo account.');
+        }
+    };
+
+    return (
+        <div className="min-h-screen bg-gray-900 flex flex-col justify-center items-center p-4">
+            <div className="w-full max-w-md">
+                <div className="flex justify-center items-center gap-3 mb-8">
+                    <LogoIcon className="h-10 w-10 text-teal-400" />
+                    <h1 className="text-3xl font-bold tracking-tight text-white">Viral Content AI Studio</h1>
+                </div>
+                <div className="bg-gray-800 rounded-lg shadow-2xl p-8">
+                    <h2 className="text-2xl font-bold text-center text-white mb-6">Welcome Back</h2>
+                    {error && <p className="bg-red-900/50 text-red-300 text-sm p-3 rounded-md mb-4">{error}</p>}
+                    <form onSubmit={handleSubmit} className="space-y-6">
+                        <div>
+                            <label className="block text-sm font-medium text-gray-300 mb-1">Email Address</label>
+                            {/* FIX: Use e.currentTarget instead of e.target to ensure correct type inference. */}
+                            <input type="email" value={email} onChange={(e: React.ChangeEvent<HTMLInputElement>) => setEmail(e.currentTarget.value)} required className="w-full bg-gray-700 border border-gray-600 rounded-md py-2 px-3 text-white focus:outline-none focus:ring-teal-500 focus:border-teal-500"/>
+                        </div>
+                        <div>
+                            <label className="block text-sm font-medium text-gray-300 mb-1">Password</label>
+                            {/* FIX: Use e.currentTarget instead of e.target to ensure correct type inference. */}
+                            <input type="password" value={password} onChange={(e: React.ChangeEvent<HTMLInputElement>) => setPassword(e.currentTarget.value)} required className="w-full bg-gray-700 border border-gray-600 rounded-md py-2 px-3 text-white focus:outline-none focus:ring-teal-500 focus:border-teal-500"/>
+                        </div>
+                        <button type="submit" className="w-full bg-teal-600 hover:bg-teal-700 text-white font-bold py-3 px-4 rounded-md transition-colors">
+                            Log In
+                        </button>
+                    </form>
+                </div>
+            </div>
+        </div>
+    );
+};
+
+// --- LOCALSTORAGE HELPERS for Proofing View ---
+const findPostByShareId = (shareId: string): { userEmail: string, post: Post, clientName?: string } | null => {
+    try {
+        const allData = JSON.parse((window as any).localStorage.getItem('viralContentSuiteData') || '{}');
+        for (const email in allData) {
+            const userData: UserData = allData[email];
+            if (userData.posts) {
+                const post = userData.posts.find(p => p.shareId === shareId);
+                if (post) {
+                    const client = userData.clients?.find(c => c.id === post.clientId);
+                    return { userEmail: email, post, clientName: client?.name };
+                }
+            }
+        }
+    } catch (error) {
+        console.error("Failed to search for post in localStorage", error);
+    }
+    return null;
+};
+
+const updatePostByShareId = (shareId: string, update: Partial<Post>) => {
+    try {
+        const allData = JSON.parse((window as any).localStorage.getItem('viralContentSuiteData') || '{}');
+        for (const email in allData) {
+            const userData: UserData = allData[email];
+            if (userData.posts) {
+                const postIndex = userData.posts.findIndex(p => p.shareId === shareId);
+                if (postIndex > -1) {
+                    userData.posts[postIndex] = { ...userData.posts[postIndex], ...update };
+                    allData[email] = userData;
+                    (window as any).localStorage.setItem('viralContentSuiteData', JSON.stringify(allData));
+                    return; 
+                }
+            }
+        }
+    } catch (error) {
+        console.error("Failed to update post in localStorage", error);
+    }
+};
+
 
 // --- MAIN APP COMPONENT ---
 const App: React.FC = () => {
@@ -376,58 +518,98 @@ const App: React.FC = () => {
   const [generationState, setGenerationState] = useState<GenerationState>({ status: 'IDLE', message: '' });
   const [n8nWebhookUrl, setN8nWebhookUrl] = useState<string>('');
   
-  const [currentUser, setCurrentUser] = useState<User>({
-    name: 'Alex Doe',
-    email: 'alex.doe@example.com',
-    avatarUrl: `https://api.dicebear.com/8.x/initials/svg?seed=Alex%20Doe`,
-    walletBalance: 50.00,
-  });
+  const [currentUser, setCurrentUser] = useState<User | null>(null);
+  const [proofingShareId, setProofingShareId] = useState<string | null>(null);
   
-  const [userSettings, setUserSettings] = useState<UserSettings>({
+  const defaultUserSettings: UserSettings = {
     apiKeyOption: 'platform',
     customGoogleApiKey: '',
     customElevenLabsApiKey: '',
-  });
+  };
+  const [userSettings, setUserSettings] = useState<UserSettings>(defaultUserSettings);
 
+  const isAuthenticated = !!currentUser;
+
+  const customApiKeys = useMemo<ApiKeys | undefined>(() => (
+    userSettings.apiKeyOption === 'custom' ? {
+        google: userSettings.customGoogleApiKey,
+        elevenlabs: userSettings.customElevenLabsApiKey,
+    } : undefined
+  ), [userSettings]);
+
+  // Check for proofing link on initial load
   useEffect(() => {
-    try {
-      const savedProjects = localStorage.getItem('viralContentProjects');
-      if (savedProjects) setProjects(JSON.parse(savedProjects));
-      
-      const savedClients = localStorage.getItem('viralContentClients');
-      if (savedClients) setClients(JSON.parse(savedClients));
-      
-      const savedSettings = localStorage.getItem('viralContentSettings');
-      if (savedSettings) setUserSettings(JSON.parse(savedSettings));
-
-    } catch (error) {
-      console.error("Failed to load data from localStorage", error);
+    const params = new URLSearchParams((window as any).location.search);
+    const shareId = params.get('proof');
+    if (shareId) {
+        setProofingShareId(shareId);
     }
   }, []);
+  
+  // Data persistence logic
+  useEffect(() => {
+    if (currentUser) {
+        try {
+            const allData = JSON.parse((window as any).localStorage.getItem('viralContentSuiteData') || '{}');
+            const userData: UserData = { posts, projects, clients, userSettings };
+            allData[currentUser.email] = userData;
+            (window as any).localStorage.setItem('viralContentSuiteData', JSON.stringify(allData));
+        } catch (error) {
+            console.error("Failed to save data to localStorage", error);
+        }
+    }
+  }, [posts, projects, clients, userSettings, currentUser]);
 
-  useEffect(() => {
+  const handleLogin = (user: User) => {
     try {
-      localStorage.setItem('viralContentProjects', JSON.stringify(projects));
+        const allData = JSON.parse((window as any).localStorage.getItem('viralContentSuiteData') || '{}');
+        const userData: UserData = allData[user.email] || { posts: [], projects: [], clients: [], userSettings: defaultUserSettings };
+        setPosts(userData.posts);
+        setProjects(userData.projects);
+        setClients(userData.clients);
+        setUserSettings(userData.userSettings);
     } catch (error) {
-      console.error("Failed to save projects to localStorage", error);
+        console.error("Failed to load user data from localStorage", error);
+        // Load default empty state on error
+        setPosts([]);
+        setProjects([]);
+        setClients([]);
+        setUserSettings(defaultUserSettings);
     }
-  }, [projects]);
+    setCurrentUser(user);
+  };
   
+  const handleLogout = () => {
+    setCurrentUser(null);
+    setPosts([]);
+    setProjects([]);
+    setClients([]);
+    setUserSettings(defaultUserSettings);
+  };
+  
+  // Effect for checking scheduled posts
   useEffect(() => {
-    try {
-      localStorage.setItem('viralContentClients', JSON.stringify(clients));
-    } catch (error) {
-      console.error("Failed to save clients to localStorage", error);
-    }
-  }, [clients]);
-  
+    const interval = setInterval(() => {
+      setPosts(prevPosts => {
+        const now = new Date();
+        let postsUpdated = false;
+        const newPosts = prevPosts.map(post => {
+          if (post.status === PostStatus.Scheduled && post.scheduledAt && new Date(post.scheduledAt) <= now) {
+            postsUpdated = true;
+            return { ...post, status: PostStatus.Approved };
+          }
+          return post;
+        });
+        return postsUpdated ? newPosts : prevPosts;
+      });
+    }, 60000); // Check every minute
+
+    return () => clearInterval(interval); // Cleanup on unmount
+  }, []);
+
+
   const handleSaveSettings = (settings: UserSettings) => {
     setUserSettings(settings);
-     try {
-      localStorage.setItem('viralContentSettings', JSON.stringify(settings));
-    } catch (error) {
-      console.error("Failed to save settings to localStorage", error);
-    }
     setIsSettingsModalOpen(false);
   }
 
@@ -441,7 +623,7 @@ const App: React.FC = () => {
   };
   const handleDeleteClient = (id: string) => {
     if (projects.some(p => p.clientId === id)) {
-        alert("Cannot delete client with active projects. Please re-assign or delete projects first.");
+        (window as any).alert("Cannot delete client with active projects. Please re-assign or delete projects first.");
         return;
     }
     setClients(prev => prev.filter(c => c.id !== id));
@@ -496,11 +678,6 @@ const App: React.FC = () => {
 
     setGenerationState({ status: 'LOADING', message: 'Warming up the AI...' });
     
-    const customApiKeys = userSettings.apiKeyOption === 'custom' ? {
-        google: userSettings.customGoogleApiKey,
-        elevenlabs: userSettings.customElevenLabsApiKey,
-    } : undefined;
-
     try {
       const newPosts = await generateContentForAllPlatforms(
         options, 
@@ -518,7 +695,7 @@ const App: React.FC = () => {
       setGenerationState({ status: 'ERROR', message: `Generation failed: ${errorMessage}` });
       setTimeout(() => setGenerationState({ status: 'IDLE', message: '' }), 5000);
     }
-  }, [handlePostUpdate, userSettings, handleVideoError]);
+  }, [handlePostUpdate, userSettings, handleVideoError, customApiKeys]);
 
   const handleDelete = (id: string) => {
     setPosts(posts.filter(post => post.id !== id));
@@ -542,7 +719,7 @@ const App: React.FC = () => {
 
   const handleDownload = (post: Post) => {
     if (post.videoUrl && post.videoUrl !== 'GENERATING' && post.videoUrl !== 'FAILED') {
-       window.open(post.videoUrl, '_blank');
+       (window as any).open(post.videoUrl, '_blank');
     } else if (post.imageUrl) {
         downloadFile(post.imageUrl, `${post.platform}_${post.id}.jpeg`, 'image/jpeg');
     } else if (post.audioUrl) {
@@ -554,12 +731,15 @@ const App: React.FC = () => {
 
   const handleSendToN8n = async (post: Post) => {
     if (!n8nWebhookUrl) {
-      alert('Please enter your n8n Webhook URL in the control panel.');
+      (window as any).alert('Please enter your n8n Webhook URL in the control panel.');
       return false;
     }
-    if (!URL.canParse(n8nWebhookUrl)) {
-        alert('The provided n8n Webhook URL is invalid.');
-        return false;
+    // FIX: Replace URL.canParse with a try-catch block for broader compatibility, which may be the cause of the misleading error.
+    try {
+      new URL(n8nWebhookUrl);
+    } catch {
+      (window as any).alert('The provided n8n Webhook URL is invalid.');
+      return false;
     }
 
     try {
@@ -574,7 +754,7 @@ const App: React.FC = () => {
         return true;
     } catch (error) {
         console.error('Failed to send to n8n:', error);
-        alert(`Failed to send post to n8n. Check console for details.`);
+        (window as any).alert(`Failed to send post to n8n. Check console for details.`);
         return false;
     }
   };
@@ -584,17 +764,17 @@ const App: React.FC = () => {
     for (const post of postsToSend) {
         const success = await handleSendToN8n(post);
         if(!success) {
-            alert(`Aborting bulk send due to an error with post for ${post.platform}.`);
+            (window as any).alert(`Aborting bulk send due to an error with post for ${post.platform}.`);
             return;
         }
         await new Promise(resolve => setTimeout(resolve, 200)); // Small delay
     }
-    alert(`${postsToSend.length} posts sent to n8n successfully!`);
+    (window as any).alert(`${postsToSend.length} posts sent to n8n successfully!`);
   };
   
   const handleRepurpose = async (sourcePost: Post, targetPlatforms: Platform[]) => {
     if (!sourcePost.generationOptions) {
-        alert("Cannot repurpose this post: original generation options are missing.");
+        (window as any).alert("Cannot repurpose this post: original generation options are missing.");
         return;
     }
     const newOptions: GenerationOptions = {
@@ -609,6 +789,18 @@ const App: React.FC = () => {
     projects.forEach(p => p.category && categories.add(p.category));
     return Array.from(categories);
   }, [posts, projects]);
+
+  if (proofingShareId) {
+    return <ProofingView 
+        shareId={proofingShareId} 
+        findPost={findPostByShareId} 
+        updatePost={updatePostByShareId} 
+    />;
+  }
+
+  if (!isAuthenticated || !currentUser) {
+    return <LoginScreen onLogin={handleLogin} />;
+  }
 
   return (
     <div className="min-h-screen bg-gray-900 text-gray-200 flex flex-col">
@@ -627,7 +819,7 @@ const App: React.FC = () => {
             user={currentUser}
             onSettings={() => setIsSettingsModalOpen(true)}
             onWallet={() => setIsWalletModalOpen(true)}
-            onLogout={() => alert('Logout functionality is not implemented.')}
+            onLogout={handleLogout}
           />
         </div>
       </header>
@@ -658,6 +850,7 @@ const App: React.FC = () => {
               onBulkUpdateStatus={handleBulkUpdateStatus}
               onBulkSendToN8n={handleBulkSendToN8n}
               onRepurpose={handleRepurpose}
+              apiKeys={customApiKeys}
             />
           </div>
         </div>
@@ -694,8 +887,8 @@ const App: React.FC = () => {
             user={currentUser}
             onClose={() => setIsWalletModalOpen(false)}
             onAddFunds={(amount) => {
-                alert(`Adding $${amount} to wallet (simulation).`);
-                setCurrentUser(u => ({...u, walletBalance: u.walletBalance + amount}));
+                // In a real app, this would be a backend call. Here we just update local state.
+                setCurrentUser(u => u ? {...u, walletBalance: u.walletBalance + amount} : null);
                 setIsWalletModalOpen(false);
             }}
         />
@@ -707,7 +900,7 @@ const App: React.FC = () => {
                     // @ts-ignore - aistudio is available on the window
                     window.aistudio.openSelectKey();
                     setApiKeyModalVisible(false);
-                     setTimeout(() => alert("API Key selected. Please click 'Generate Content' again to start video generation."), 100);
+                     setTimeout(() => (window as any).alert("API Key selected. Please click 'Generate Content' again to start video generation."), 100);
                 }}
             />
         )}

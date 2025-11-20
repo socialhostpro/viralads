@@ -1,3 +1,5 @@
+
+
 import React, { useState } from 'react';
 import type { User } from '../types';
 import { CloseIcon, WalletIcon } from './Icons';
@@ -23,7 +25,7 @@ export const WalletModal: React.FC<WalletModalProps> = ({ user, onClose, onAddFu
         if (numericAmount > 0) {
             onAddFunds(numericAmount);
         } else {
-            alert("Please enter a valid amount.");
+            (window as any).alert("Please enter a valid amount.");
         }
     };
 
@@ -46,7 +48,8 @@ export const WalletModal: React.FC<WalletModalProps> = ({ user, onClose, onAddFu
                              <input 
                                 type="number" 
                                 value={amount}
-                                onChange={(e) => setAmount(e.target.value)}
+                                // FIX: Use e.currentTarget instead of e.target to ensure correct type inference.
+                                onChange={(e: React.ChangeEvent<HTMLInputElement>) => setAmount(e.currentTarget.value)}
                                 placeholder="Enter amount" 
                                 className="flex-grow bg-gray-700 border border-gray-600 rounded-md py-2 px-3 text-white focus:outline-none focus:ring-teal-500 focus:border-teal-500"
                             />

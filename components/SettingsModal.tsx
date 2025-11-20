@@ -1,3 +1,5 @@
+
+
 import React, { useState, useEffect } from 'react';
 import type { UserSettings } from '../types';
 import { CloseIcon, CheckCircleIcon } from './Icons';
@@ -58,11 +60,13 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({ settings, onClose,
                                         <div className="mt-4 space-y-3" onClick={e => e.stopPropagation()}>
                                             <div>
                                                 <label className="block text-sm font-medium text-gray-300 mb-1">Google AI Studio API Key</label>
-                                                <input type="password" value={currentSettings.customGoogleApiKey || ''} onChange={e => handleInputChange('customGoogleApiKey', e.target.value)} className="w-full bg-gray-700 border border-gray-600 rounded-md py-2 px-3 text-white focus:outline-none focus:ring-teal-500 focus:border-teal-500" placeholder="Enter your Google API Key"/>
+                                                {/* FIX: Use e.currentTarget instead of e.target to ensure correct type inference. */}
+                                                <input type="password" value={currentSettings.customGoogleApiKey || ''} onChange={(e: React.ChangeEvent<HTMLInputElement>) => handleInputChange('customGoogleApiKey', e.currentTarget.value)} className="w-full bg-gray-700 border border-gray-600 rounded-md py-2 px-3 text-white focus:outline-none focus:ring-teal-500 focus:border-teal-500" placeholder="Enter your Google API Key"/>
                                             </div>
                                             <div>
                                                 <label className="block text-sm font-medium text-gray-300 mb-1">ElevenLabs API Key</label>
-                                                <input type="password" value={currentSettings.customElevenLabsApiKey || ''} onChange={e => handleInputChange('customElevenLabsApiKey', e.target.value)} className="w-full bg-gray-700 border border-gray-600 rounded-md py-2 px-3 text-white focus:outline-none focus:ring-teal-500 focus:border-teal-500" placeholder="Enter your ElevenLabs API Key"/>
+                                                {/* FIX: Use e.currentTarget instead of e.target to ensure correct type inference. */}
+                                                <input type="password" value={currentSettings.customElevenLabsApiKey || ''} onChange={(e: React.ChangeEvent<HTMLInputElement>) => handleInputChange('customElevenLabsApiKey', e.currentTarget.value)} className="w-full bg-gray-700 border border-gray-600 rounded-md py-2 px-3 text-white focus:outline-none focus:ring-teal-500 focus:border-teal-500" placeholder="Enter your ElevenLabs API Key"/>
                                             </div>
                                         </div>
                                     )}

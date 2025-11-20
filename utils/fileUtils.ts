@@ -1,4 +1,3 @@
-
 export const downloadFile = (content: string, fileName: string, mimeType: string) => {
   const isBase64Image = mimeType.startsWith('image/') && content.startsWith('data:');
   
@@ -7,12 +6,13 @@ export const downloadFile = (content: string, fileName: string, mimeType: string
     : new Blob([content], { type: mimeType });
 
   const url = URL.createObjectURL(blob);
-  const a = document.createElement('a');
+  // FIX: Cast window to any to access document property
+  const a = (window as any).document.createElement('a');
   a.href = url;
   a.download = fileName;
-  document.body.appendChild(a);
+  (window as any).document.body.appendChild(a);
   a.click();
-  document.body.removeChild(a);
+  (window as any).document.body.removeChild(a);
   URL.revokeObjectURL(url);
 };
 
